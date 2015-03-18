@@ -1,6 +1,7 @@
 ;;; org-blog.el --- Blog like sitemap for org-publish
 
-;; Version: 0.1
+;; Version: 20150318.1637
+;; X-Original-Version: 0.1
 ;; URL: git@github.com:jcouyang/org-blog.git
 
 ;;; Commentary:
@@ -47,9 +48,11 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
   (let* ((project-plist (cdr project))
          (dir (file-name-as-directory
                (plist-get project-plist :base-directory)))
+         (blog-archive (plist-get project-plist :blog-archive))
          (exclude-regexp (plist-get project-plist :exclude))
-         (files (nreverse (org-publish-get-base-files project exclude-regexp)))
+         
          (blog-filename (concat dir (or blog-filename "index.org")))
+         (archive-filename (concat dir (or blog-archive "archive.org")))
          (blog-title (or (plist-get project-plist :blog-title)
                          (concat "Blog " (car project))))
          (blog-entry-format (or (plist-get project-plist
@@ -63,50 +66,50 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
                               org-blog-export-keywords))
          (export-dates (or (plist-get project-plist :blog-export-dates)
                            org-blog-export-dates)))
+    
     (with-current-buffer (setq blog-buffer
                                (or visiting (find-file blog-filename)))
-      (erase-buffer)
-      (setq save-buffer-coding-system blog-encoding)
-      (insert (concat "#+TITLE: " blog-title "\n\n"))
-      (if blog-insert-first
-          (insert blog-insert-first))
-      (while (setq file (pop files))
-        (unless (equal (file-truename blog-filename)
-                       (file-truename file))
-          (let* ((link (file-relative-name file dir))
-                 (entry (org-blog-format-file-entry
-                         blog-entry-format
-                         file link project-plist))
-                 (entry-list (org-blog-format-file-entry
-                              "  + [[%l][%t]]\n" file link
-                              project-plist))
-                 (keywords (org-blog-find-keywords file)))
-            (insert entry)
-            (if export-keywords
+      (let* ((files (nreverse (org-publish-get-base-files project exclude-regexp))))
+        (erase-buffer)
+        (setq save-buffer-coding-system blog-encoding)
+        (insert (concat "#+TITLE: " blog-title "\n\n"))
+        (if blog-insert-first
+            (insert blog-insert-first))
+        (while (setq file (pop files))
+          (unless (equal (file-truename blog-filename)
+                         (file-truename file))
+            (let* ((link (file-relative-name file dir))
+                   (entry (org-blog-format-file-entry
+                           blog-entry-format
+                           file link project-plist))
+                   (entry-list (org-blog-format-file-entry
+                                "  + [[%l][%t]]\n" file link
+                                project-plist))
+                   (keywords (org-blog-find-keywords file)))
+              (insert entry)
+              )))
+        (save-buffer)))
+    
+    (with-current-buffer (setq archive-buffer
+                               (or visiting (find-file archive-filename)))
+      (let ((files (nreverse (org-publish-get-base-files project exclude-regexp))))
+        
+        (erase-buffer)
+        (setq save-buffer-coding-system blog-encoding)
+        (insert (concat "#+TITLE: " blog-title "\n\n"))
+        (if export-dates
+            (while (setq file (pop files))
+              
+              (let* ((link (file-relative-name file dir))
+                     (entry (org-blog-format-file-entry
+                             blog-entry-format
+                             file link project-plist))
+                     (entry-list (org-blog-format-file-entry
+                                  "  + [[%l][%t]]\n" file link
+                                  project-plist))
+                     (keywords (org-blog-find-keywords file)))
                 (save-excursion
-                  (let ((headlineh1 (org-find-exact-headline-in-buffer
-                                     "Keywords"  (current-buffer) t)))
-                    (if headlineh1
-                        (progn
-                          (goto-char headlineh1)
-                          (forward-line 4))
-                      (goto-char (point-max))
-                      (insert "* Keywords\n"
-                              ":PROPERTIES:\n:HTML_CONTAINER_CLASS: keywords\n"
-                              ":END:\n"))
-                    (mapc (lambda (keyword)
-                            (save-excursion
-                              (let ((headlineh2 (org-find-exact-headline-in-buffer
-                                                 keyword (current-buffer) t)))
-                                (if (not headlineh2)
-                                    (insert "\n** " keyword "\n" entry-list)
-                                  (goto-char headlineh2)
-                                  (forward-line 1)
-                                  (insert entry-list)))))
-                          (split-string keywords ", ")))))
-            (if export-dates
-                (save-excursion
-                  (let* ((date (format-time-string "%Y" (org-publish-find-date
+                  (let* ((date (format-time-string "%b %Y" (org-publish-find-date
                                                          file)))
                          (headlineh1 (org-find-exact-headline-in-buffer
                                       "Year"  (current-buffer) t))
@@ -115,9 +118,8 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
                     (if headlineh1
                         (progn
                           (goto-char headlineh1)
-                          (forward-line 4))
+                          (goto-char (point-max)))
                       ;; No "Year" headline, insert it.
-                      (goto-char (point-max))
                       (insert "* Year\n"
                               ":PROPERTIES:\n:HTML_CONTAINER_CLASS: year\n"
                               ":END:\n"))
@@ -127,9 +129,12 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
                         (insert "\n** " date "\n" entry-list)
                       (goto-char headlineh2)
                       (forward-line 1)
-                      (insert entry-list))))))))
-      (save-buffer))
-    (or visiting (kill-buffer blog-buffer))))
+                      (insert entry-list)))))))
+        (save-buffer))
+      )
+    (or visiting (kill-buffer archive-buffer))
+    (or visiting (kill-buffer blog-buffer))
+    ))
 
 (defun org-blog-format-file-entry (fmt file link project-plist)
   (format-spec fmt
@@ -186,3 +191,5 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
       lines)))
 
 (provide 'org-blog)
+
+;;; org-blog.el ends here
