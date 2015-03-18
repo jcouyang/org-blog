@@ -1,5 +1,8 @@
 ;;; org-blog.el --- Blog like sitemap for org-publish
 
+;; Version: 0.1
+;; URL: git@github.com:jcouyang/org-blog.git
+
 ;;; Commentary:
 
 ;; This program contains a function 'org-blog-export' which can be
