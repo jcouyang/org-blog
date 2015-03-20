@@ -138,6 +138,7 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
                `((?t . ,(org-publish-find-title file t))
                  (?d . ,(format-time-string org-publish-sitemap-date-format
                                             (org-publish-find-date file)))
+                 (?D . ,(format-time-string "<%Y-%m-%d %a>" (org-publish-find-date file)))
                  (?a . ,(or (plist-get project-plist :author) user-full-name))
                  (?c . ,(org-blog-find-content-lines
                          file (or (plist-get project-plist
