@@ -25,16 +25,11 @@
   :type 'boolean)
 
 
-(defcustom org-blog-entry-format "* %t
+(defcustom org-blog-entry-format "* [[%l][%t]]
 
 =by= /%a/ - =%d=
 
-:PROPERTIES:
-:HTML_CONTAINER_CLASS: blogentry
-:END:
 %c...
-
-[[%l][Read more]]
 
 "
   "Format for the entries on the blog frontpage"
@@ -69,7 +64,7 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
     
     (with-current-buffer (setq blog-buffer
                                (or visiting (find-file blog-filename)))
-      (let* ((files (nreverse (org-publish-get-base-files project exclude-regexp))))
+      (let* ((files (sort (org-publish-get-base-files project exclude-regexp) 'org-compare-files-timestamp)))
         (erase-buffer)
         (setq save-buffer-coding-system blog-encoding)
         (insert (concat "#+TITLE: " blog-title "\n\n"))
@@ -135,7 +130,9 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
     (or visiting (kill-buffer archive-buffer))
     (or visiting (kill-buffer blog-buffer))
     ))
-
+(defun org-compare-files-timestamp (a b)
+  (time-less-p (org-publish-find-date b) (org-publish-find-date a))
+  )
 (defun org-blog-format-file-entry (fmt file link project-plist)
   (format-spec fmt
                `((?t . ,(org-publish-find-title file t))
