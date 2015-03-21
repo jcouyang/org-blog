@@ -47,6 +47,7 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
          (exclude-regexp (plist-get project-plist :exclude))
          
          (blog-filename (concat dir (or blog-filename "index.org")))
+         (index-filename (concat dir "theindex.org"))
          (archive-filename (concat dir (or blog-archive "archive.org")))
          (blog-title (or (plist-get project-plist :blog-title)
                          (concat "Blog " (car project))))
@@ -61,13 +62,56 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
                               org-blog-export-keywords))
          (export-dates (or (plist-get project-plist :blog-export-dates)
                            org-blog-export-dates)))
-    
+
     (let ((files (sort (-remove (lambda (file)
-                                  (equal (file-truename blog-filename)
-                                         (file-truename file)))
+                                  (--any? (equal it file)
+                                          (list (file-truename blog-filename)
+                                                (file-truename archive-filename)
+                                                (file-truename index-filename))))
                                 (org-publish-get-base-files project exclude-regexp))
                        'org-compare-files-timestamp)))
-               
+      (with-current-buffer (setq archive-buffer
+                                 (or visiting (find-file archive-filename)))
+        
+        (erase-buffer)
+        (setq save-buffer-coding-system blog-encoding)
+        (insert (concat "#+TITLE: " blog-title "\n\n"))
+        (if blog-insert-first
+            (insert blog-insert-first))
+        (mapc
+         (lambda (file)
+           (let* ((link (file-relative-name file dir))
+                  (entry (org-blog-format-file-entry
+                          blog-entry-format
+                          file link project-plist))
+                  (entry-list (org-blog-format-file-entry
+                               "  + [[%l][%t]]\n" file link
+                               project-plist))
+                  (keywords (org-blog-find-keywords file)))
+             (save-excursion
+               (let* ((date (format-time-string "%b %Y" (org-publish-find-date
+                                                         file)))
+                      (headlineh1 (org-find-exact-headline-in-buffer
+                                   "Year"  (current-buffer) t))
+                      (headlineh2 (org-find-exact-headline-in-buffer
+                                   date (current-buffer) t)))
+                 (if headlineh1
+                     (progn
+                       (goto-char headlineh1)
+                       (goto-char (point-max)))
+                   ;; No "Year" headline, insert it.
+                   (insert "* Year\n"
+                           ":PROPERTIES:\n:HTML_CONTAINER_CLASS: year\n"
+                           ":END:\n"))
+                 ;; At this point we are at headlineh1
+                 (if (not headlineh2)
+                     ;; No headline matching the current year, insert it.
+                     (insert "\n** " date "\n" entry-list)
+                   (goto-char headlineh2)
+                   (forward-line 1)
+                   (insert entry-list))))))
+         files)
+        (save-buffer))
       (with-current-buffer (setq blog-buffer
                                  (or visiting (find-file blog-filename)))
         
@@ -79,61 +123,18 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
         (mapc
          (lambda (file)
            (let* ((link (file-relative-name file dir))
-                   (entry (org-blog-format-file-entry
-                           blog-entry-format
-                           file link project-plist))
-                   (entry-list (org-blog-format-file-entry
-                                "  + [[%l][%t]]\n" file link
-                                project-plist))
-                   (keywords (org-blog-find-keywords file)))
-              (insert entry)))
+                  (entry (org-blog-format-file-entry
+                          blog-entry-format
+                          file link project-plist))
+                  (entry-list (org-blog-format-file-entry
+                               "  + [[%l][%t]]\n" file link
+                               project-plist))
+                  (keywords (org-blog-find-keywords file)))
+             (insert entry)))
          files)
         (save-buffer))
-      (with-current-buffer (setq archive-buffer
-                               (or visiting (find-file archive-filename)))
-        
-        (erase-buffer)
-        (setq save-buffer-coding-system blog-encoding)
-        (insert (concat "#+TITLE: " blog-title "\n\n"))
-        (if blog-insert-first
-            (insert blog-insert-first))
-        (mapc
-         (lambda (file)
-           (let* ((link (file-relative-name file dir))
-                     (entry (org-blog-format-file-entry
-                             blog-entry-format
-                             file link project-plist))
-                     (entry-list (org-blog-format-file-entry
-                                  "  + [[%l][%t]]\n" file link
-                                  project-plist))
-                     (keywords (org-blog-find-keywords file)))
-                (save-excursion
-                  (let* ((date (format-time-string "%b %Y" (org-publish-find-date
-                                                         file)))
-                         (headlineh1 (org-find-exact-headline-in-buffer
-                                      "Year"  (current-buffer) t))
-                         (headlineh2 (org-find-exact-headline-in-buffer
-                                      date (current-buffer) t)))
-                    (if headlineh1
-                        (progn
-                          (goto-char headlineh1)
-                          (goto-char (point-max)))
-                      ;; No "Year" headline, insert it.
-                      (insert "* Year\n"
-                              ":PROPERTIES:\n:HTML_CONTAINER_CLASS: year\n"
-                              ":END:\n"))
-                    ;; At this point we are at headlineh1
-                    (if (not headlineh2)
-                        ;; No headline matching the current year, insert it.
-                        (insert "\n** " date "\n" entry-list)
-                      (goto-char headlineh2)
-                      (forward-line 1)
-                      (insert entry-list))))))
-         files)
-        (save-buffer))
-      )  
-    (or visiting (kill-buffer archive-buffer))
-    (or visiting (kill-buffer blog-buffer))
+      (or visiting (kill-buffer blog-buffer))
+      (or visiting (kill-buffer archive-buffer))  )
     ))
 (defun org-compare-files-timestamp (a b)
   (time-less-p (org-publish-find-date b) (org-publish-find-date a))
