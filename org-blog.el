@@ -13,7 +13,7 @@
 ;; index to the blog.
 
 ;;; Code:
-
+(require 'dash)
 (defcustom org-blog-export-keywords nil
   "Set to 't' to export a list of blog entries for each keyword"
   :group 'org-blog
@@ -62,18 +62,23 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
          (export-dates (or (plist-get project-plist :blog-export-dates)
                            org-blog-export-dates)))
     
-    (with-current-buffer (setq blog-buffer
-                               (or visiting (find-file blog-filename)))
-      (let* ((files (sort (org-publish-get-base-files project exclude-regexp) 'org-compare-files-timestamp)))
+    (let ((files (sort (-remove (lambda (file)
+                                  (equal (file-truename blog-filename)
+                                         (file-truename file)))
+                                (org-publish-get-base-files project exclude-regexp))
+                       'org-compare-files-timestamp)))
+               
+      (with-current-buffer (setq blog-buffer
+                                 (or visiting (find-file blog-filename)))
+        
         (erase-buffer)
         (setq save-buffer-coding-system blog-encoding)
         (insert (concat "#+TITLE: " blog-title "\n\n"))
         (if blog-insert-first
             (insert blog-insert-first))
-        (while (setq file (pop files))
-          (unless (equal (file-truename blog-filename)
-                         (file-truename file))
-            (let* ((link (file-relative-name file dir))
+        (mapc
+         (lambda (file)
+           (let* ((link (file-relative-name file dir))
                    (entry (org-blog-format-file-entry
                            blog-entry-format
                            file link project-plist))
@@ -81,21 +86,20 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
                                 "  + [[%l][%t]]\n" file link
                                 project-plist))
                    (keywords (org-blog-find-keywords file)))
-              (insert entry)
-              )))
-        (save-buffer)))
-    
-    (with-current-buffer (setq archive-buffer
+              (insert entry)))
+         files)
+        (save-buffer))
+      (with-current-buffer (setq archive-buffer
                                (or visiting (find-file archive-filename)))
-      (let ((files (nreverse (org-publish-get-base-files project exclude-regexp))))
         
         (erase-buffer)
         (setq save-buffer-coding-system blog-encoding)
         (insert (concat "#+TITLE: " blog-title "\n\n"))
-        (if export-dates
-            (while (setq file (pop files))
-              
-              (let* ((link (file-relative-name file dir))
+        (if blog-insert-first
+            (insert blog-insert-first))
+        (mapc
+         (lambda (file)
+           (let* ((link (file-relative-name file dir))
                      (entry (org-blog-format-file-entry
                              blog-entry-format
                              file link project-plist))
@@ -124,9 +128,10 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
                         (insert "\n** " date "\n" entry-list)
                       (goto-char headlineh2)
                       (forward-line 1)
-                      (insert entry-list)))))))
+                      (insert entry-list))))))
+         files)
         (save-buffer))
-      )
+      )  
     (or visiting (kill-buffer archive-buffer))
     (or visiting (kill-buffer blog-buffer))
     ))
