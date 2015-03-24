@@ -58,8 +58,6 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
                             'utf-8))
          (visiting (find-buffer-visiting blog-filename))
          (blog-insert-first (plist-get project-plist :blog-insert-first))
-         (export-keywords (or (plist-get project-plist :blog-export-keywords)
-                              org-blog-export-keywords))
          (export-dates (or (plist-get project-plist :blog-export-dates)
                            org-blog-export-dates)))
 
@@ -86,13 +84,12 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
                           file link project-plist))
                   (entry-list (org-blog-format-file-entry
                                "  + [[%l][%t]]\n" file link
-                               project-plist))
-                  (keywords (org-blog-find-keywords file)))
+                               project-plist)))
              (save-excursion
                (let* ((date (format-time-string "%b %Y" (org-publish-find-date
                                                          file)))
                       (headlineh1 (org-find-exact-headline-in-buffer
-                                   "Year"  (current-buffer) t))
+                                   "Archive"  (current-buffer) t))
                       (headlineh2 (org-find-exact-headline-in-buffer
                                    date (current-buffer) t)))
                  (if headlineh1
@@ -100,7 +97,7 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
                        (goto-char headlineh1)
                        (goto-char (point-max)))
                    ;; No "Year" headline, insert it.
-                   (insert "* Year\n"
+                   (insert "* Archive\n"
                            ":PROPERTIES:\n:HTML_CONTAINER_CLASS: year\n"
                            ":END:\n"))
                  ;; At this point we are at headlineh1
@@ -129,12 +126,12 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
                   (entry-list (org-blog-format-file-entry
                                "  + [[%l][%t]]\n" file link
                                project-plist))
-                  (keywords (org-blog-find-keywords file)))
+                  )
              (insert entry)))
          files)
         (save-buffer))
       (or visiting (kill-buffer blog-buffer))
-      (or visiting (kill-buffer archive-buffer))  )
+      (or visiting (kill-buffer archive-buffer)))
     ))
 (defun org-compare-files-timestamp (a b)
   (time-less-p (org-publish-find-date b) (org-publish-find-date a))
@@ -150,23 +147,31 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
                          file (or (plist-get project-plist
                                              :blog-content-lines) 5)))
                  (?l . ,(concat "file:" link))
-                 (?k . ,(org-blog-find-keywords file)))))
+                 (?p . ,(org-blog-find-description file t)))))
 
-(defun org-blog-find-keywords (file &optional reset)
-  "Find the keywords of FILE in project"
+(defun org-blog-find-description (file &optional reset)
+  "Find the title of FILE in project."
   (or
-   (and (not reset) (org-publish-cache-get-file-property file :keywords nil t)
-        (let* ((visiting (find-buffer-visiting file))
-               (buffer (or visiting (find-file-noselect file)))
-               keywords)
-          (with-current-buffer buffer
-            (let* ((opt-plist (org-combine-plists (org-default-export-plist)
-                                                  (org-infile-export-plist))))
-              (setq keywords (plist-get opt-plist :keywords))))
-          (unless visiting
-            (kill-buffer buffer))
-          (org-publish-cache-set-file-property file :keywords keywords)
-          keywords))))
+   (and (not reset) (org-publish-cache-get-file-property file :description nil t))
+   (let* ((org-inhibit-startup t)
+          (visiting (find-buffer-visiting file))
+          (buffer (or visiting (find-file-noselect file))))
+     (with-current-buffer buffer
+       (let ((title
+              (let ((property
+                     (plist-get
+                      ;; protect local variables in open buffers
+                      (if visiting
+                          (org-export-with-buffer-copy (org-export-get-environment))
+                        (org-export-get-environment))
+                      :description)))
+                (if property
+                    (org-no-properties (org-element-interpret-data property))
+                  ""))))
+                (unless visiting (kill-buffer buffer))
+                (org-publish-cache-set-file-property file :description title)
+                title)))))
+
 
 (defun org-blog-find-content-lines (file n)
   "Find and return the n first lines of FILE. Default is 5. It
