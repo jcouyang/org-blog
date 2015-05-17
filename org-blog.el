@@ -74,6 +74,7 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
         (erase-buffer)
         (setq save-buffer-coding-system blog-encoding)
         (insert (concat "#+TITLE: " blog-title "\n\n"))
+        (insert "#+OPTIONS: toc:nil\n")
         (if blog-insert-first
             (insert blog-insert-first))
         (mapc
@@ -115,6 +116,7 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
         (erase-buffer)
         (setq save-buffer-coding-system blog-encoding)
         (insert (concat "#+TITLE: " blog-title "\n\n"))
+        (insert "#+OPTIONS: toc:nil\n")
         (if blog-insert-first
             (insert blog-insert-first))
         (mapc
