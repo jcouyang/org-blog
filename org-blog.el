@@ -1,6 +1,7 @@
 ;;; org-blog.el --- Blog like sitemap for org-publish
 
-;; Version: 20150318.1637
+;; Version: 20150517.2154
+;; X-Original-Version: 20150318.1637
 ;; X-Original-Version: 0.1
 ;; URL: git@github.com:jcouyang/org-blog.git
 
@@ -139,20 +140,18 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
   (time-less-p (org-publish-find-date b) (org-publish-find-date a))
   )
 (defun org-blog-format-file-entry (fmt file link project-plist)
-  (let* ((hl-home (file-name-as-directory (plist-get project-plist :html-link-home))))
-    (format-spec fmt
-                      `((?t . ,(org-publish-find-title file t))
-                        (?d . ,(format-time-string org-publish-sitemap-date-format
-                                                   (org-publish-find-date file)))
-                        (?D . ,(format-time-string "<%Y-%m-%d %a>" (org-publish-find-date file)))
-                        (?a . ,(or (plist-get project-plist :author) user-full-name))
-                        (?c . ,(org-blog-find-content-lines
-                                file (or (plist-get project-plist
-                                                    :blog-content-lines) 5)))
-                        (?l . ,(concat "file:" link))
-                        (?L . ,(replace-regexp-in-string "\.org" "\.html" link))
-                        (?p . ,(org-blog-find-description file t))))
-    ))
+  (format-spec fmt
+               `((?t . ,(org-publish-find-title file t))
+                 (?d . ,(format-time-string org-publish-sitemap-date-format
+                                            (org-publish-find-date file)))
+                 (?D . ,(format-time-string "<%Y-%m-%d %a>" (org-publish-find-date file)))
+                 (?a . ,(or (plist-get project-plist :author) user-full-name))
+                 (?c . ,(org-blog-find-content-lines
+                         file (or (plist-get project-plist
+                                             :blog-content-lines) 5)))
+                 (?l . ,(concat "file:" link))
+                 (?L . ,(replace-regexp-in-string "\.org" "\.html" link))
+                 (?p . ,(org-blog-find-description file t)))))
 
 (defun org-blog-find-description (file &optional reset)
   "Find the title of FILE in project."
