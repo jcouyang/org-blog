@@ -1,6 +1,7 @@
 ;;; org-blog.el --- Blog like sitemap for org-publish
 
 ;; Version: 20150517.2154
+;; Package-Version: 20150521.1022
 ;; X-Original-Version: 20150318.1637
 ;; X-Original-Version: 0.1
 ;; URL: git@github.com:jcouyang/org-blog.git
@@ -151,7 +152,7 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
                                              :blog-content-lines) 5)))
                  (?l . ,(concat "file:" link))
                  (?L . ,(replace-regexp-in-string "\.org" "\.html" link))
-                 (?p . ,(org-blog-find-description file t)))))
+                 (?p . ,(org-blog-find-content-lines file 5)))))
 
 (defun org-blog-find-description (file &optional reset)
   "Find the title of FILE in project."
@@ -171,7 +172,7 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
                       :description)))
                 (if property
                     (org-no-properties (org-element-interpret-data property))
-                  ""))))
+                  (file-name-nondirectory (file-name-sans-extension file))))))
                 (unless visiting (kill-buffer buffer))
                 (org-publish-cache-set-file-property file :description title)
                 title)))))
@@ -189,15 +190,17 @@ Default for SITEMAP-FILENAME is 'sitemap.org'."
 
       (while (and (> n 0) (char-after))
         (beginning-of-line)
-        (if (not (char-equal (char-after) ?#))
-            (let ((line (buffer-substring (line-beginning-position)
-                                          (line-end-position))))
+        (if (not (or (char-equal (char-after) ?#)
+                     (char-equal (char-after) 10)))
+            (let ((line (replace-regexp-in-string "\\[.*\\]" "㊙" (buffer-substring (line-beginning-position)
+                                                                                (line-end-position)))))
               (setq n (1- n))
               (setq lines (concat lines
                                   (if (char-equal (string-to-char line) ?*)
                                       "*"
                                     "  ")
-                                  line "\n"))))
+                                  line "\n"))
+              ))
         (forward-line 1))
       (unless visiting
         (kill-buffer (current-buffer)))
